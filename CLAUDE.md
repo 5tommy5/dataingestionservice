@@ -64,7 +64,7 @@ PostgreSQL
 
 - **Clean Architecture**: domain and application logic have zero dependency on EF Core, Redis, or ASP.NET. Interfaces for `ITransactionRepository` and `IStatsCache` are declared in Application; Infrastructure implements them.
 - **FluentValidation**: `TransactionRequestValidator : AbstractValidator<TransactionRequest>` lives in Application. Currency rule uses the `ISOCurrencies` NuGet to check against the real ISO 4217 table rather than a regex. Registered in DI and invoked explicitly by use cases (not auto-wired to model binding).
-- **Deduplication** via `idempotency_key` (SHA-256 of `customer_id|transaction_date|amount|currency|source_channel`), stored as UNIQUE — duplicates silently skipped via `ON CONFLICT DO NOTHING`.
+- **Deduplication** via `idempotency_key` (SHA-256 of `customer_id|transaction_datetime|amount|currency|source_channel`), stored as UNIQUE — duplicates silently skipped via `ON CONFLICT DO NOTHING`.
 - **Batch ingestion** streams CSV line-by-line and bulk-inserts in chunks of 5000 rows per DB transaction.
 - **Stats cache** is stale-by-TTL (not invalidated on ingest) — 60s TTL is acceptable per spec.
 - **No auth, no message queue** — intentionally excluded per PRD.
@@ -77,16 +77,16 @@ PostgreSQL
 | POST | `/ingest/batch` | `IngestController` — multipart CSV upload; returns accepted/rejected counts |
 | POST | `/ingest/transaction` | `IngestController` — single JSON transaction; returns 201/400/409 |
 | GET | `/customers/{id}/transactions` | `QueryController` — paginated, filterable transaction list |
-| GET | `/stats/summary` | `QueryController` — aggregate stats (Redis-cached); use case returns `ValueTask` |
+| GET | `/stats/summary` | `QueryController` — aggregate stats (Redis-cached); use case returns `Task` |
 
 ### Data model
 
-`transactions` table: `id` (UUID PK), `customer_id` (indexed), `transaction_date`, `amount` (DECIMAL 18,4), `currency` (CHAR 3), `source_channel`, `idempotency_key` (UNIQUE), `created_at`.
+`transactions` table: `id` (UUID PK), `customer_id` (indexed), `transaction_date` (TIMESTAMP), `amount` (DECIMAL 18,4), `currency` (CHAR 3), `source_channel`, `idempotency_key` (UNIQUE), `created_at`.
 
 ### Validation rules (enforced via FluentValidation)
 
 - `customer_id`: required, non-empty
-- `transaction_date`: required, valid date, not in the future
+- `transaction_date`: required, valid datetime, not in the future
 - `amount`: required, > 0, max 2 decimal places
 - `currency`: required, valid ISO 4217 (3 uppercase letters)
 - `source_channel`: required, non-empty

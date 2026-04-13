@@ -13,7 +13,7 @@ public class TransactionRequestValidator : AbstractValidator<TransactionRequest>
 
         RuleFor(x => x.TransactionDate)
             .NotEmpty()
-            .LessThanOrEqualTo(_ => DateTime.UtcNow.Date);
+            .LessThanOrEqualTo(_ => DateTime.UtcNow);
 
         RuleFor(x => x.Amount)
             .GreaterThan(0)

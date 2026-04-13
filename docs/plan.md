@@ -46,7 +46,7 @@ In `DataIngestionService.Application`:
 In `DataIngestionService.Application`:
 - `TransactionRequestValidator : AbstractValidator<TransactionRequest>` with rules:
   - `CustomerId`: `NotEmpty()`
-  - `TransactionDate`: `NotEmpty()`, `LessThanOrEqualTo(DateTime.UtcNow.Date)`
+  - `TransactionDate`: `NotEmpty()`, `LessThanOrEqualTo(DateTime.UtcNow)`
   - `Amount`: `GreaterThan(0)`, custom rule asserting max 2 decimal places
   - `Currency`: `NotEmpty()`, custom rule using `ISOCurrencies` (e.g. `CurrencyCodesResolver.TryGetCurrencyCode(value, out _)`) to assert the value is a valid ISO 4217 code
   - `SourceChannel`: `NotEmpty()`
@@ -57,7 +57,7 @@ In `DataIngestionService.Application`:
 ### 5. Application layer — use cases
 Four use-case service classes in `DataIngestionService.Application`:
 
-- **`IngestTransactionUseCase`**: compute `IdempotencyKey` (SHA-256 of `customerId|date|amount|currency|sourceChannel`), validate via `IValidator<TransactionRequest>`, call `ITransactionRepository.InsertAsync`, catch `DuplicateTransactionException` → 409
+- **`IngestTransactionUseCase`**: compute `IdempotencyKey` (SHA-256 of `customerId|datetime|amount|currency|sourceChannel`), validate via `IValidator<TransactionRequest>`, call `ITransactionRepository.InsertAsync`, catch `DuplicateTransactionException` → 409
 - **`IngestBatchUseCase`**: stream CSV line-by-line, parse + validate each row, collect `{row, reason}` errors, bulk-insert valid rows in chunks of 5000 via `ITransactionRepository.BulkInsertAsync`, return `BatchIngestResponse`
 - **`GetCustomerTransactionsUseCase`**: delegate to `ITransactionRepository.GetByCustomerIdAsync` with pagination/filter params
 - **`GetStatsSummaryUseCase`**: returns `Task<StatsSummaryResponse>` — checks `IStatsCache` first; on miss calls `ITransactionRepository.GetStatsAsync` and writes to `IStatsCache` with 60 s TTL (Redis I/O is always async so `ValueTask` offers no benefit here)
@@ -72,6 +72,7 @@ In `DataIngestionService.Infrastructure`:
   - `CustomerId` → index
   - `Amount` → `decimal(18,4)`
   - `Currency` → `char(3)`
+  - `TransactionDate` → `timestamp` (stores full datetime, not date-only)
 
 ---
 

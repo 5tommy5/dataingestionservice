@@ -27,7 +27,7 @@ A .NET 8 Web API service for ingesting, validating, deduplicating, and querying 
 ```
 id              UUID        PK
 customer_id     VARCHAR     indexed
-transaction_date DATE
+transaction_date TIMESTAMP
 amount          DECIMAL(18,4)
 currency        CHAR(3)
 source_channel  VARCHAR
@@ -93,7 +93,7 @@ created_at      TIMESTAMP
 | Field | Rule |
 |---|---|
 | `customer_id` | Required, non-empty |
-| `transaction_date` | Required, valid date, not in the future |
+| `transaction_date` | Required, valid datetime, not in the future |
 | `amount` | Required, > 0, max 2 decimal places |
 | `currency` | Required, valid ISO 4217 code — validated via `ISOCurrencies` NuGet (not just regex) |
 | `source_channel` | Required, non-empty |
