@@ -4,6 +4,7 @@ public class SourceChannelStat
 {
     public string Channel { get; set; } = string.Empty;
     public int Count { get; set; }
+    public decimal TotalAmount { get; set; }
 }
 
 public class StatsSummaryResponse
