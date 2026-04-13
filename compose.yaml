@@ -1,0 +1,7 @@
+﻿services:
+  dataingestionservice.api:
+    image: dataingestionservice.api
+    build:
+      context: .
+      dockerfile: DataIngestionService.Api/Dockerfile
+
