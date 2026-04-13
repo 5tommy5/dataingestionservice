@@ -75,11 +75,12 @@ created_at      TIMESTAMP
   "totalTransactions": 150000,
   "totalCustomers": 4200,
   "totalVolumeByCurrency": { "USD": 1200000.00, "EUR": 340000.00 },
-  "avgTransactionAmount": 87.50,
+  "avgDailyTransactionAmount": 87.50,
   "topSourceChannels": [{ "channel": "web", "count": 90000 }],
   "transactionsLast24h": 1200
 }
 ```
+- `avgDailyTransactionAmount`: average of total transaction amounts summed per day, over the last 30 days
 - Response is cached in Redis with a **60-second TTL**
 - Cache key: `stats:summary` (global, not per-user)
 - On cache miss: runs full aggregate query against PostgreSQL, then writes result to Redis
