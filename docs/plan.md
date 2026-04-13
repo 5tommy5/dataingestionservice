@@ -60,7 +60,7 @@ Four use-case service classes in `DataIngestionService.Application`:
 - **`IngestTransactionUseCase`**: compute `IdempotencyKey` (SHA-256 of `customerId|date|amount|currency|sourceChannel`), validate via `IValidator<TransactionRequest>`, call `ITransactionRepository.InsertAsync`, catch `DuplicateTransactionException` → 409
 - **`IngestBatchUseCase`**: stream CSV line-by-line, parse + validate each row, collect `{row, reason}` errors, bulk-insert valid rows in chunks of 5000 via `ITransactionRepository.BulkInsertAsync`, return `BatchIngestResponse`
 - **`GetCustomerTransactionsUseCase`**: delegate to `ITransactionRepository.GetByCustomerIdAsync` with pagination/filter params
-- **`GetStatsSummaryUseCase`**: returns `ValueTask<StatsSummaryResponse>` — cache hit is synchronous (avoids `Task` heap allocation); on miss calls `ITransactionRepository.GetStatsAsync` and writes to `IStatsCache` with 60 s TTL
+- **`GetStatsSummaryUseCase`**: returns `Task<StatsSummaryResponse>` — checks `IStatsCache` first; on miss calls `ITransactionRepository.GetStatsAsync` and writes to `IStatsCache` with 60 s TTL (Redis I/O is always async so `ValueTask` offers no benefit here)
 
 ---
 
@@ -105,7 +105,7 @@ In `DataIngestionService.Api` (`Program.cs`):
   - `IngestController` — `POST /ingest/batch`, `POST /ingest/transaction`
   - `QueryController` — `GET /customers/{id}/transactions`, `GET /stats/summary`
 - Controllers only parse input and map use-case results/exceptions to `IActionResult` responses (`201 Created`, `400 ProblemDetails`, `409 ProblemDetails`).
-- `GetStatsSummary` action awaits `ValueTask<StatsSummaryResponse>` from `GetStatsSummaryUseCase`.
+- `GetStatsSummary` action awaits `Task<StatsSummaryResponse>` from `GetStatsSummaryUseCase`.
 
 ---
 
