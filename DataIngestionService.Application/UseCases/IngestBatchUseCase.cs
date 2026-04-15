@@ -3,6 +3,7 @@ using DataIngestionService.Application.DTOs;
 using DataIngestionService.Application.Helpers;
 using DataIngestionService.Application.Interfaces;
 using DataIngestionService.Domain.Entities;
+using DataIngestionService.Domain.Exceptions;
 using FluentValidation;
 
 namespace DataIngestionService.Application.UseCases;
@@ -29,7 +30,9 @@ public class IngestBatchUseCase
         int rowNumber = 0;
 
         using var reader = new StreamReader(csvStream, leaveOpen: true);
-        await reader.ReadLineAsync();
+        var header = await reader.ReadLineAsync();
+        if (header is not null && header.Contains(';') && !header.Contains(','))
+            throw new InvalidCsvFormatException("CSV uses ';' as delimiter; expected ','.");
 
         string? line;
         while ((line = await reader.ReadLineAsync()) != null)

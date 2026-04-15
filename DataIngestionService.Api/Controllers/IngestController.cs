@@ -58,8 +58,20 @@ public class IngestController : ControllerBase
     [HttpPost("batch")]
     public async Task<IActionResult> IngestBatch(IFormFile file)
     {
-        await using var stream = file.OpenReadStream();
-        var result = await _ingestBatch.ExecuteAsync(stream);
-        return Ok(result);
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var result = await _ingestBatch.ExecuteAsync(stream);
+            return Ok(result);
+        }
+        catch (InvalidCsvFormatException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Invalid CSV format",
+                Detail = ex.Message,
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
     }
 }

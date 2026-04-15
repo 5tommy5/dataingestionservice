@@ -103,7 +103,7 @@ public class TransactionRepository : ITransactionRepository
 
         var volumeByCurrency = await _context.Transactions
             .GroupBy(t => t.Currency)
-            .Select(g => new { Currency = g.Key, Total = g.Sum(t => t.Amount) })
+            .Select(g => new { Currency = g.Key, Total = g.Count() })
             .ToListAsync();
 
         var dailySums = await _context.Transactions

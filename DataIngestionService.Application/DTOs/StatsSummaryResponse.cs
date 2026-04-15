@@ -11,7 +11,7 @@ public class StatsSummaryResponse
 {
     public int TotalTransactions { get; set; }
     public int TotalCustomers { get; set; }
-    public Dictionary<string, decimal> TotalVolumeByCurrency { get; set; } = [];
+    public Dictionary<string, int> TotalVolumeByCurrency { get; set; } = [];
     // Average total transaction amount per day over the last 30 days
     public decimal AvgDailyTransactionAmount { get; set; }
     public IReadOnlyList<SourceChannelStat> TopSourceChannels { get; set; } = [];
