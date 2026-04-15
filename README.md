@@ -49,6 +49,7 @@ See [docs/prd.md](docs/prd.md) and [docs/plan.md](docs/plan.md) for full require
 - Add structured logging and a health-check endpoint (`/healthz`) for production readiness.
 - Move the bulk upsert logic into a PostgreSQL stored procedure to get proper per-row duplicate tracking and cleaner separation between application and persistence concerns.
 - Async batch processing — large CSV uploads currently block the HTTP request until the entire file is processed. A better approach would be a two-request flow: the first call returns `202 Accepted` with a job ID, and a second request polls for the result (accepted/rejected counts, errors). This could be backed by an outbox pattern or a message broker for resilience.
+- Move credentials (database connection strings, Redis URLs) out of `appsettings.json` / environment variables and into a secrets vault (e.g. HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault) to avoid credentials being stored in plaintext in config files or leaking through environment inspection.
 
 ---
 
