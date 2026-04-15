@@ -21,7 +21,7 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
 
         builder.Property(t => t.TransactionDate)
             .HasColumnName("transaction_date")
-            .HasColumnType("timestamp")
+            .HasColumnType("timestamp with time zone")
             .IsRequired();
 
         builder.Property(t => t.Amount)
@@ -31,7 +31,7 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
 
         builder.Property(t => t.Currency)
             .HasColumnName("currency")
-            .HasColumnType("char(3)")
+            .HasColumnType("varchar(3)")
             .IsRequired();
 
         builder.Property(t => t.SourceChannel)
@@ -43,7 +43,8 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
             .IsRequired();
 
         builder.Property(t => t.CreatedAt)
-            .HasColumnName("created_at");
+            .HasColumnName("created_at")
+            .HasColumnType("timestamp with time zone");
 
         builder.HasIndex(t => t.IdempotencyKey)
             .IsUnique();

@@ -57,17 +57,24 @@ public class IngestBatchUseCase
             }
 
             chunk.Add(CreateTransaction(request));
-            accepted++;
 
             if (chunk.Count >= ChunkSize)
             {
-                await _repository.BulkInsertAsync(chunk);
+                var acceptedCount = await _repository.BulkInsertAsync(chunk);
+                
+                accepted += acceptedCount;
+                rejected += chunk.Count - acceptedCount;
                 chunk.Clear();
             }
         }
 
         if (chunk.Count > 0)
-            await _repository.BulkInsertAsync(chunk);
+        {
+            var acceptedCount = await _repository.BulkInsertAsync(chunk);
+
+            accepted += acceptedCount;
+            rejected += chunk.Count - acceptedCount;
+        }
 
         return new BatchIngestResponse
         {
@@ -83,7 +90,7 @@ public class IngestBatchUseCase
         if (parts.Length < 5)
             return null;
 
-        if (!DateTime.TryParse(parts[1].Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+        if (!DateTime.TryParse(parts[1].Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var date))
             return null;
 
         if (!decimal.TryParse(parts[2].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var amount))

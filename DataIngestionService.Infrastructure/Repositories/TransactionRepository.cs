@@ -32,12 +32,17 @@ public class TransactionRepository : ITransactionRepository
         }
     }
 
-    public async Task BulkInsertAsync(IEnumerable<Transaction> transactions)
+    public async Task<int> BulkInsertAsync(IEnumerable<Transaction> transactions)
     {
-        // PropertiesToExcludeOnUpdate = [""] is the EFCore.BulkExtensions pattern for insert-if-not-exists:
-        // it produces INSERT ... ON CONFLICT DO NOTHING, silently skipping duplicate idempotency keys
-        var bulkConfig = new BulkConfig { PropertiesToExcludeOnUpdate = [""] };
+        var bulkConfig = new BulkConfig
+        {
+            UpdateByProperties = [nameof(Transaction.IdempotencyKey)],
+            PropertiesToIncludeOnUpdate = new List<string> { "" },
+            CalculateStats = true
+        };
         await _context.BulkInsertOrUpdateAsync(transactions.ToList(), bulkConfig);
+
+        return bulkConfig.StatsInfo?.StatsNumberInserted ?? 0;
     }
 
     public async Task<CustomerTransactionsResponse> GetByCustomerIdAsync(string customerId, TransactionQueryParams queryParams)
