@@ -39,7 +39,14 @@ public class TransactionRepository : ITransactionRepository
             PropertiesToIncludeOnUpdate = new List<string> { "" },
             CalculateStats = true
         };
-        await _context.BulkInsertOrUpdateAsync(transactions.ToList(), bulkConfig);
+        try
+        {
+            await _context.BulkInsertOrUpdateAsync(transactions.ToList(), bulkConfig);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("Bulk insert failed. The batch could not be persisted.", ex);
+        }
 
         return bulkConfig.StatsInfo?.StatsNumberInserted ?? 0;
     }

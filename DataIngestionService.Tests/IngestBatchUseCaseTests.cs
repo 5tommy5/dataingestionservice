@@ -98,4 +98,39 @@ public class IngestBatchUseCaseTests
         Assert.Equal("row 1", result.Errors[0].Field);
         Assert.Equal("Malformed CSV line", result.Errors[0].Reason);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_HeaderOnly_ReturnsZeroAcceptedAndRejected()
+    {
+        const string csv = "customer_id,transaction_date,amount,currency,source_channel\n";
+
+        var result = await CreateUseCase().ExecuteAsync(ToCsvStream(csv));
+
+        Assert.Equal(0, result.Accepted);
+        Assert.Equal(0, result.Rejected);
+        Assert.Empty(result.Errors);
+        _repositoryMock.Verify(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DuplicateRowsInBatch_ReportsSkippedRowsAsRejected()
+    {
+        const string csv =
+            "customer_id,transaction_date,amount,currency,source_channel\n" +
+            "cust-1,2024-01-01T00:00:00Z,100.00,USD,web\n" +
+            "cust-1,2024-01-01T00:00:00Z,100.00,USD,web\n" +
+            "cust-1,2024-01-01T00:00:00Z,100.00,USD,web\n";
+
+        // Simulate DB ON CONFLICT DO NOTHING: only 1 of the 3 identical rows inserted
+        _repositoryMock
+            .Setup(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>()))
+            .ReturnsAsync(1);
+
+        var result = await CreateUseCase().ExecuteAsync(ToCsvStream(csv));
+
+        Assert.Equal(1, result.Accepted);
+        Assert.Equal(2, result.Rejected);
+        // Duplicate-skipped rows have no validation error entries
+        Assert.Empty(result.Errors);
+    }
 }

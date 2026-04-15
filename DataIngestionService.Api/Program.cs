@@ -35,6 +35,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.UseExceptionHandler();
 app.UseHttpsRedirection();
 app.MapControllers();
 
