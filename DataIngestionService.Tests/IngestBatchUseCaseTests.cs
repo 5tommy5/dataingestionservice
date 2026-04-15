@@ -30,8 +30,8 @@ public class IngestBatchUseCaseTests
             "cust-2,2024-01-02T00:00:00Z,200.00,EUR,mobile\n";
 
         _repositoryMock
-            .Setup(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>()))
-            .ReturnsAsync((IEnumerable<Transaction> t) => t.Count());
+            .Setup(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<Transaction> t, CancellationToken _) => t.Count());
 
         var result = await CreateUseCase().ExecuteAsync(ToCsvStream(csv));
 
@@ -50,8 +50,8 @@ public class IngestBatchUseCaseTests
             "cust-3,2024-01-03T00:00:00Z,75.00,EUR,api\n";
 
         _repositoryMock
-            .Setup(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>()))
-            .ReturnsAsync((IEnumerable<Transaction> t) => t.Count());
+            .Setup(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEnumerable<Transaction> t, CancellationToken _) => t.Count());
 
         var result = await CreateUseCase().ExecuteAsync(ToCsvStream(csv));
 
@@ -109,7 +109,7 @@ public class IngestBatchUseCaseTests
         Assert.Equal(0, result.Accepted);
         Assert.Equal(0, result.Rejected);
         Assert.Empty(result.Errors);
-        _repositoryMock.Verify(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>()), Times.Never);
+        _repositoryMock.Verify(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public class IngestBatchUseCaseTests
 
         // Simulate DB ON CONFLICT DO NOTHING: only 1 of the 3 identical rows inserted
         _repositoryMock
-            .Setup(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>()))
+            .Setup(r => r.BulkInsertAsync(It.IsAny<IEnumerable<Transaction>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
         var result = await CreateUseCase().ExecuteAsync(ToCsvStream(csv));

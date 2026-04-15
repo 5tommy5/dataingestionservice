@@ -87,7 +87,7 @@ public class IngestController : ControllerBase
         try
         {
             await using var stream = file.OpenReadStream();
-            var result = await _ingestBatch.ExecuteAsync(stream);
+            var result = await _ingestBatch.ExecuteAsync(stream, HttpContext.RequestAborted);
             return Ok(result);
         }
         catch (InvalidCsvFormatException ex)

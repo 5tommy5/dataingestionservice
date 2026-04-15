@@ -26,7 +26,7 @@ public class IngestBatchUseCase
         _logger = logger;
     }
 
-    public async Task<BatchIngestResponse> ExecuteAsync(Stream csvStream)
+    public async Task<BatchIngestResponse> ExecuteAsync(Stream csvStream, CancellationToken cancellationToken = default)
     {
         var errors = new List<ValidationError>();
         var chunk = new List<Transaction>(ChunkSize);
@@ -55,6 +55,7 @@ public class IngestBatchUseCase
 
         while (await csv.ReadAsync())
         {
+            cancellationToken.ThrowIfCancellationRequested();
             rowNumber++;
             TransactionRequest? request;
             try
@@ -88,7 +89,7 @@ public class IngestBatchUseCase
 
             if (chunk.Count >= ChunkSize)
             {
-                var acceptedCount = await _repository.BulkInsertAsync(chunk);
+                var acceptedCount = await _repository.BulkInsertAsync(chunk, cancellationToken);
                 accepted += acceptedCount;
                 rejected += chunk.Count - acceptedCount;
                 chunk.Clear();

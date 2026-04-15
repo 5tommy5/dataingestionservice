@@ -31,7 +31,7 @@ public class TransactionRepository : ITransactionRepository
         }
     }
 
-    public async Task<int> BulkInsertAsync(IEnumerable<Transaction> transactions)
+    public async Task<int> BulkInsertAsync(IEnumerable<Transaction> transactions, CancellationToken cancellationToken = default)
     {
         var bulkConfig = new BulkConfig
         {
@@ -41,7 +41,7 @@ public class TransactionRepository : ITransactionRepository
         };
         try
         {
-            await _context.BulkInsertOrUpdateAsync(transactions.ToList(), bulkConfig);
+            await _context.BulkInsertOrUpdateAsync(transactions.ToList(), bulkConfig, cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
