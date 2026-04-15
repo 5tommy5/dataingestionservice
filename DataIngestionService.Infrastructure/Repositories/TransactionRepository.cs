@@ -25,9 +25,8 @@ public class TransactionRepository : ITransactionRepository
             _context.Transactions.Add(transaction);
             await _context.SaveChangesAsync();
         }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException pgEx && pgEx.SqlState == PostgresErrorCodes.UniqueViolation)
         {
-            // SqlState 23505 is PostgreSQL's unique_violation error code - thrown when idempotency_key already exists
             throw new DuplicateTransactionException(transaction.IdempotencyKey);
         }
     }
@@ -103,21 +102,21 @@ public class TransactionRepository : ITransactionRepository
 
         var volumeByCurrency = await _context.Transactions
             .GroupBy(t => t.Currency)
-            .Select(g => new { Currency = g.Key, Total = g.Count() })
+            .Select(g => new { Currency = g.Key, Total = g.Sum(t => t.Amount) })
             .ToListAsync();
 
-        var dailySums = await _context.Transactions
+        var dailyCounts = await _context.Transactions
             .Where(t => t.TransactionDate >= cutoff30Days)
             .GroupBy(t => t.TransactionDate.Date)
-            .Select(g => g.Sum(t => t.Amount))
+            .Select(g => (decimal)g.Count())
             .ToListAsync();
 
-        var avgDailyAmount = dailySums.Count > 0 ? dailySums.Average() : 0m;
+        var avgDailyTransactionCount = dailyCounts.Count > 0 ? Math.Round(dailyCounts.Sum() / 30m, 2) : 0m;
 
         var topChannels = await _context.Transactions
             .GroupBy(t => t.SourceChannel)
-            .Select(g => new SourceChannelStat { Channel = g.Key, Count = g.Count(), TotalAmount = g.Sum(t => t.Amount) })
-            .OrderByDescending(x => x.TotalAmount)
+            .Select(g => new SourceChannelStat { Channel = g.Key, TotalTransactions = g.Count() })
+            .OrderByDescending(x => x.TotalTransactions)
             .Take(5)
             .ToListAsync();
 
@@ -129,7 +128,7 @@ public class TransactionRepository : ITransactionRepository
             TotalTransactions = totalTransactions,
             TotalCustomers = totalCustomers,
             TotalVolumeByCurrency = volumeByCurrency.ToDictionary(x => x.Currency, x => x.Total),
-            AvgDailyTransactionAmount = avgDailyAmount,
+            AvgDailyTransactionCount = avgDailyTransactionCount,
             TopSourceChannels = topChannels,
             TransactionsLast24h = transactionsLast24h
         };

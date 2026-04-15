@@ -1,4 +1,4 @@
-namespace DataIngestionService.Domain.Exceptions;
+namespace DataIngestionService.Application.Exceptions;
 
 public class InvalidCsvFormatException : Exception
 {

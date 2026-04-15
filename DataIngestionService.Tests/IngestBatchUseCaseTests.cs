@@ -3,7 +3,9 @@ using DataIngestionService.Application.Interfaces;
 using DataIngestionService.Application.UseCases;
 using DataIngestionService.Application.Validators;
 using DataIngestionService.Domain.Entities;
+using DataIngestionService.Application.Exceptions;
 using DataIngestionService.Domain.Exceptions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace DataIngestionService.Tests;
@@ -14,7 +16,7 @@ public class IngestBatchUseCaseTests
     private readonly TransactionRequestValidator _validator = new();
 
     private IngestBatchUseCase CreateUseCase() =>
-        new(_repositoryMock.Object, _validator);
+        new(_repositoryMock.Object, _validator, NullLogger<IngestBatchUseCase>.Instance);
 
     private static Stream ToCsvStream(string csv) =>
         new MemoryStream(Encoding.UTF8.GetBytes(csv));
@@ -65,6 +67,17 @@ public class IngestBatchUseCaseTests
         const string csv =
             "customer_id;transaction_date;amount;currency;source_channel\n" +
             "cust-1;2024-01-01T00:00:00Z;100.00;USD;web\n";
+
+        await Assert.ThrowsAsync<InvalidCsvFormatException>(
+            () => CreateUseCase().ExecuteAsync(ToCsvStream(csv)));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_HeaderContainsBothDelimiters_ThrowsInvalidCsvFormatException()
+    {
+        const string csv =
+            "customer_id,transaction_date;amount;currency;source_channel\n" +
+            "cust-1,2024-01-01T00:00:00Z;100.00;USD;web\n";
 
         await Assert.ThrowsAsync<InvalidCsvFormatException>(
             () => CreateUseCase().ExecuteAsync(ToCsvStream(csv)));

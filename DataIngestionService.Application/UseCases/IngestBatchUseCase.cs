@@ -1,24 +1,29 @@
 using System.Globalization;
+using CsvHelper;
+using CsvHelper.Configuration;
 using DataIngestionService.Application.DTOs;
 using DataIngestionService.Application.Helpers;
 using DataIngestionService.Application.Interfaces;
 using DataIngestionService.Domain.Entities;
-using DataIngestionService.Domain.Exceptions;
+using DataIngestionService.Application.Exceptions;
 using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace DataIngestionService.Application.UseCases;
 
 public class IngestBatchUseCase
 {
-    private const int ChunkSize = 5000;
+    private const int ChunkSize = 15000;
 
     private readonly ITransactionRepository _repository;
     private readonly IValidator<TransactionRequest> _validator;
+    private readonly ILogger<IngestBatchUseCase> _logger;
 
-    public IngestBatchUseCase(ITransactionRepository repository, IValidator<TransactionRequest> validator)
+    public IngestBatchUseCase(ITransactionRepository repository, IValidator<TransactionRequest> validator, ILogger<IngestBatchUseCase> logger)
     {
         _repository = repository;
         _validator = validator;
+        _logger = logger;
     }
 
     public async Task<BatchIngestResponse> ExecuteAsync(Stream csvStream)
@@ -29,20 +34,40 @@ public class IngestBatchUseCase
         int rejected = 0;
         int rowNumber = 0;
 
-        using var reader = new StreamReader(csvStream, leaveOpen: true);
-        var header = await reader.ReadLineAsync();
-        if (header is not null && header.Contains(';') && !header.Contains(','))
-            throw new InvalidCsvFormatException("CSV uses ';' as delimiter; expected ','.");
-
-        string? line;
-        while ((line = await reader.ReadLineAsync()) != null)
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
-            if (string.IsNullOrWhiteSpace(line))
-                continue;
+            HasHeaderRecord = true,
+            HeaderValidated = null,
+            MissingFieldFound = null,
+            BadDataFound = null,
+        };
 
+        using var reader = new StreamReader(csvStream, leaveOpen: true);
+        using var csv = new CsvReader(reader, config);
+        csv.Context.RegisterClassMap<TransactionCsvMap>();
+
+        await csv.ReadAsync();
+        csv.ReadHeader();
+
+        var headerRecord = csv.HeaderRecord;
+        if (headerRecord is null || headerRecord.Length < 5)
+            throw new InvalidCsvFormatException("CSV does not contain the required 5 columns. Ensure the file is comma-delimited with headers: customer_id, transaction_date, amount, currency, source_channel.");
+
+        while (await csv.ReadAsync())
+        {
             rowNumber++;
+            TransactionRequest? request;
+            try
+            {
+                request = csv.GetRecord<TransactionRequest>();
+            }
+            catch (Exception)
+            {
+                errors.Add(new ValidationError($"row {rowNumber}", "Malformed CSV line"));
+                rejected++;
+                continue;
+            }
 
-            var request = ParseCsvLine(line);
             if (request is null)
             {
                 errors.Add(new ValidationError($"row {rowNumber}", "Malformed CSV line"));
@@ -64,7 +89,6 @@ public class IngestBatchUseCase
             if (chunk.Count >= ChunkSize)
             {
                 var acceptedCount = await _repository.BulkInsertAsync(chunk);
-                
                 accepted += acceptedCount;
                 rejected += chunk.Count - acceptedCount;
                 chunk.Clear();
@@ -74,10 +98,11 @@ public class IngestBatchUseCase
         if (chunk.Count > 0)
         {
             var acceptedCount = await _repository.BulkInsertAsync(chunk);
-
             accepted += acceptedCount;
             rejected += chunk.Count - acceptedCount;
         }
+
+        _logger.LogInformation("Batch ingestion complete: {Accepted} accepted, {Rejected} rejected", accepted, rejected);
 
         return new BatchIngestResponse
         {
@@ -87,26 +112,17 @@ public class IngestBatchUseCase
         };
     }
 
-    private static TransactionRequest? ParseCsvLine(string line)
+    private sealed class TransactionCsvMap : ClassMap<TransactionRequest>
     {
-        var parts = line.Split(',');
-        if (parts.Length < 5)
-            return null;
-
-        if (!DateTime.TryParse(parts[1].Trim(), CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var date))
-            return null;
-
-        if (!decimal.TryParse(parts[2].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var amount))
-            return null;
-
-        return new TransactionRequest
+        public TransactionCsvMap()
         {
-            CustomerId = parts[0].Trim(),
-            TransactionDate = date,
-            Amount = amount,
-            Currency = parts[3].Trim(),
-            SourceChannel = parts[4].Trim()
-        };
+            Map(m => m.CustomerId).Index(0);
+            Map(m => m.TransactionDate).Index(1)
+                .TypeConverterOption.DateTimeStyles(DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+            Map(m => m.Amount).Index(2);
+            Map(m => m.Currency).Index(3);
+            Map(m => m.SourceChannel).Index(4);
+        }
     }
 
     private static Transaction CreateTransaction(TransactionRequest request) => new()

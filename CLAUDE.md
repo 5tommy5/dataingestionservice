@@ -65,7 +65,7 @@ PostgreSQL
 - **Clean Architecture**: domain and application logic have zero dependency on EF Core, Redis, or ASP.NET. Interfaces for `ITransactionRepository` and `IStatsCache` are declared in Application; Infrastructure implements them.
 - **FluentValidation**: `TransactionRequestValidator : AbstractValidator<TransactionRequest>` lives in Application. Currency rule uses the `ISOCurrencies` NuGet to check against the real ISO 4217 table rather than a regex. Registered in DI and invoked explicitly by use cases (not auto-wired to model binding).
 - **Deduplication** via `idempotency_key` (SHA-256 of `customer_id|transaction_datetime|amount|currency|source_channel`), stored as UNIQUE — duplicates silently skipped via `ON CONFLICT DO NOTHING`.
-- **Batch ingestion** streams CSV line-by-line and bulk-inserts in chunks of 5000 rows per DB transaction.
+- **Batch ingestion** streams CSV line-by-line and bulk-inserts in chunks of 15,000 rows per DB transaction.
 - **Stats cache** is stale-by-TTL (not invalidated on ingest) — 60s TTL is acceptable per spec.
 - **No auth, no message queue** — intentionally excluded per PRD.
 - Errors surface as structured `ProblemDetails` responses.
